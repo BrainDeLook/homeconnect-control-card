@@ -1,0 +1,10 @@
+title: Home Connect
+views:
+  - title: Моя техника
+    path: homeconnect
+    type: panel
+    icon: mdi:dishwasher
+    cards:
+      - type: custom:homeconnect-control-card
+        title: Моя техника
+        show_summary: true
