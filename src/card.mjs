@@ -1,3 +1,4 @@
+import {updateCardDOM} from './dom.mjs';
 import { INTEGRATION, VERSION, ROLES, TYPE_NAMES, entityDomain, buildDevices, entityLabel, available, controllable, isReadonly, formatState, durationText, shortProgram, immediateProgramSelection, selectedProgramDuration, controlGroup, validateConfig, callAction } from './core.mjs';
 import { esc, icon, illustration, CSS, SCHEDULE_CSS } from './view.mjs';
 import {scheduleRange,schedulePreview,planScheduledStart,programSeconds} from './schedule.mjs';
@@ -36,7 +37,7 @@ export class HomeConnectControlCard extends HTMLElementBase {
     this._render();
   }
   connectedCallback() {this._ensureRegistry();this._render();}
-  disconnectedCallback() {this._unsubscribe();clearTimeout(this._registryTimer);clearTimeout(this._messageTimer);}
+  disconnectedCallback() {this._binding?.abort();this._unsubscribe();clearTimeout(this._registryTimer);clearTimeout(this._messageTimer);}
   _unsubscribe(){for(const unsubscribe of this._subscriptions.splice(0))unsubscribe();}
   async _ensureRegistry(force=false) {
     if(!this._hass || !this.isConnected || this._hass.connection?.connected===false)return;
@@ -187,7 +188,7 @@ export class HomeConnectControlCard extends HTMLElementBase {
       const state=this._state(e.entity_id)?.state;
       return state!=null&&!['off','unknown','unavailable','0','none'].includes(state);
     });
-    return `<div class="program-layout ordered-controls"><section class="panel program-choice"><div class="panel-title"><h2>1. Программа</h2></div>${this._programPicker(device,programs,selected,actual,active)}<div class="program-duration">${icon('clock')}<span>Время мойки <strong>${esc(duration)}</strong></span></div></section><section class="panel program-parameters"><div class="panel-title"><h2>2. Параметры программы</h2></div>${device.roles.startIn||device.roles.finishIn?`<div class="pad">${this._schedulePanel(device)}</div>`:''}<div class="main-controls">${options.map(e=>this._control(e,device,locked)).join('')}</div>${settings.length?`<details class="extra-settings"><summary>Настройки прибора</summary>${settings.map(e=>this._control(e,device)).join('')}</details>`:''}</section><section class="panel program-order"><div class="panel-title"><h2>3. Итог и запуск</h2></div><div class="pad"><div class="order-program"><strong>${esc(shortProgram(selected))}</strong><span>${esc(duration)}</span></div>${chosenOptions.length?`<div class="order-options">${chosenOptions.map(e=>`<span>${esc(entityLabel(this._hass,e))}${this._state(e.entity_id)?.state==='on'?'':`: ${esc(formatState(this._hass,e.entity_id))}`}</span>`).join('')}</div>`:''}${locked?'<p class="hint">Ожидаем подтверждения выбора программы от прибора.</p>':''}<div data-order-summary-times>${this._summaryTimes(device)}</div>${this._programButtons(device)}</div></section></div>`;
+    return `<div class="program-layout ordered-controls"><section class="panel program-choice"><div class="panel-title"><h2>Выберите программу</h2></div>${this._programPicker(device,programs,selected,actual,active)}<div class="program-duration">${icon('clock')}<span>Время мойки <strong>${esc(duration)}</strong></span></div></section><section class="panel program-parameters"><div class="panel-title"><h2>${device.type==='Dishwasher'?'Настройте мойку':'Настройте программу'}</h2></div>${device.roles.startIn||device.roles.finishIn?`<div class="pad">${this._schedulePanel(device)}</div>`:''}<div class="main-controls">${options.map(e=>this._control(e,device,locked)).join('')}</div>${settings.length?`<details class="extra-settings"><summary>Настройки прибора</summary>${settings.map(e=>this._control(e,device)).join('')}</details>`:''}</section><section class="panel program-order"><div class="panel-title"><h2>Проверьте и запускайте</h2></div><div class="pad"><div class="order-program"><strong>${esc(shortProgram(selected))}</strong><span>${esc(duration)}</span></div>${chosenOptions.length?`<div class="order-options">${chosenOptions.map(e=>`<span>${esc(entityLabel(this._hass,e))}${this._state(e.entity_id)?.state==='on'?'':`: ${esc(formatState(this._hass,e.entity_id))}`}</span>`).join('')}</div>`:''}${locked?'<p class="hint">Ожидаем подтверждения выбора программы от прибора.</p>':''}<div data-order-summary-times>${this._summaryTimes(device)}</div>${this._programButtons(device)}</div></section></div>`;
   }
   _programPicker(device,programs,selected,actual,active){
     if(!programs.length)return '<div class="empty-inline">Выбор программ недоступен.</div>';
@@ -237,21 +238,23 @@ export class HomeConnectControlCard extends HTMLElementBase {
     if(!force&&signature===this._signature)return;
     this._signature=signature;
     const content=this._page==='device'?this._detail():this._page==='favorites'?this._favoritesPage():this._page==='info'?this._info():this._overview();
-    this.shadowRoot.innerHTML=`<style>${CSS}${SCHEDULE_CSS} dialog{border:1px solid var(--hc-line);border-radius:14px;padding:25px;background:var(--hc-surface);color:var(--hc-ink);width:420px;max-width:calc(100vw - 28px)}dialog::backdrop{background:#122c4666;backdrop-filter:blur(3px)}dialog h2{margin:0 0 15px;font-size:19px}dialog p{font-size:12px;color:var(--hc-muted);line-height:1.9}dialog .actions{margin-top:22px;justify-content:flex-end}dialog .actions>.primary{flex:0}</style><ha-card><div class="frame">${this._header()}<main class="body">${this._hass.connection?.connected===false?'<div class="notice">Нет связи с Home Assistant. Команды недоступны и не сохраняются на потом.</div>':''}${this._registryError?`<div class="notice">${esc(this._registryError)}</div>`:''}${content}</main>${this._message?`<div class="toast ${this._message.error?'error':''}" role="status">${esc(this._message.text)}</div>`:''}${this._footer()}</div></ha-card>`;
+    updateCardDOM(this.shadowRoot,`<style>${CSS}${SCHEDULE_CSS} dialog{border:1px solid var(--hc-line);border-radius:14px;padding:25px;background:var(--hc-surface);color:var(--hc-ink);width:420px;max-width:calc(100vw - 28px)}dialog::backdrop{background:#122c4666;backdrop-filter:blur(3px)}dialog h2{margin:0 0 15px;font-size:19px}dialog p{font-size:12px;color:var(--hc-muted);line-height:1.9}dialog .actions{margin-top:22px;justify-content:flex-end}dialog .actions>.primary{flex:0}</style><ha-card><div class="frame">${this._header()}<main class="body">${this._hass.connection?.connected===false?'<div class="notice">Нет связи с Home Assistant. Команды недоступны и не сохраняются на потом.</div>':''}${this._registryError?`<div class="notice">${esc(this._registryError)}</div>`:''}${content}</main>${this._message?`<div class="toast ${this._message.error?'error':''}" role="status">${esc(this._message.text)}</div>`:''}${this._footer()}</div></ha-card>`);
     this._bind();
   }
+  _listen(element,type,callback){element?.addEventListener(type,callback,{signal:this._binding.signal});}
   _bind(){
+    this._binding?.abort();this._binding=new AbortController();
     const root=this.shadowRoot;
-    root.querySelector('[data-refresh]')?.addEventListener('click',()=>this._ensureRegistry(true));
-    root.querySelector('[data-schedule-toggle]')?.addEventListener('click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,!scheduleRange(this._hass,d,'finish').error?'finish':'start');});
+    this._listen(root.querySelector('[data-refresh]'),'click',()=>this._ensureRegistry(true));
+    this._listen(root.querySelector('[data-schedule-toggle]'),'click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,!scheduleRange(this._hass,d,'finish').error?'finish':'start');});
     root.querySelectorAll('[data-schedule-mode]').forEach(b=>b.onclick=()=>this._newSchedule(this._device(),b.dataset.scheduleMode));
-    root.querySelector('[data-schedule-slider]')?.addEventListener('input',event=>{const d=this._device(),draft=this._schedule(d);if(!draft)return;draft.value=Number(event.target.value);root.querySelector('[data-schedule-times]').innerHTML=this._scheduleTimes(d);const summary=root.querySelector('[data-order-summary-times]');if(summary)summary.innerHTML=this._summaryTimes(d);});
-    root.querySelector('[data-schedule-slider]')?.addEventListener('change',()=>this._render(true));
+    this._listen(root.querySelector('[data-schedule-slider]'),'input',event=>{const d=this._device(),draft=this._schedule(d);if(!draft)return;draft.value=Number(event.target.value);root.querySelector('[data-schedule-times]').innerHTML=this._scheduleTimes(d);const summary=root.querySelector('[data-order-summary-times]');if(summary)summary.innerHTML=this._summaryTimes(d);});
+    this._listen(root.querySelector('[data-schedule-slider]'),'change',()=>this._render(true));
     root.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>this._navigate(b.dataset.page));
     root.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>this._navigate('device',b.dataset.device));
     root.querySelectorAll('[data-fav-device]').forEach(b=>b.onclick=()=>{this._navigate('device',b.dataset.favDevice);this._chooseProgram(this._device(),b.dataset.programName);});
     root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{this._tab=b.dataset.tab;this._render(true);});
-    root.querySelector('[data-program-select]')?.addEventListener('change',event=>{const value=event.target.value;event.target.blur();this._chooseProgram(this._device(),value);});
+    this._listen(root.querySelector('[data-program-select]'),'change',event=>{const value=event.target.value;event.target.blur();this._chooseProgram(this._device(),value);});
     root.querySelectorAll('[data-program]').forEach(b=>b.onclick=()=>this._chooseProgram(this._device(),b.dataset.program));
     root.querySelectorAll('[data-favorite]').forEach(b=>b.onclick=()=>this._favorite(this._device(),b.dataset.favorite));
     root.querySelectorAll('[data-more]').forEach(b=>b.onclick=()=>this._moreInfo(b.dataset.more));
@@ -260,7 +263,7 @@ export class HomeConnectControlCard extends HTMLElementBase {
     root.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>{const input=root.querySelector(`[data-input="${b.dataset.save}"]`);if(input.value===''||!input.reportValidity())return this._notify('Проверьте значение параметра',true);this._run(b.dataset.action,b.dataset.save,b.dataset.action==='number'?Number(input.value):input.value);});
     root.querySelectorAll('[data-extra-save]').forEach(b=>b.onclick=()=>{const input=root.querySelector(`[data-extra-input="${b.dataset.extraSave}"][data-kind="${b.dataset.kind}"]`);if(input.value===''||!input.reportValidity())return this._notify('Проверьте значение параметра',true);this._run(b.dataset.kind,b.dataset.extraSave,b.dataset.kind==='fan_preset'?input.value:Number(input.value));});
     root.querySelectorAll('[data-button]').forEach(b=>b.onclick=()=>{const d=this._device();const e=d.entries.find(e=>e.entity_id===b.dataset.button);this._confirm(entityLabel(this._hass,e),`Выполнить действие «${entityLabel(this._hass,e)}» на приборе «${d.name}»?`,()=>this._run('button',b.dataset.button));});
-    root.querySelector('[data-apply-program]')?.addEventListener('click',()=>{const d=this._device(),program=this._program(d);this._confirm('Применить программу?',`${shortProgram(program)} · ${d.name}. Прибор может начать работу сразу после выбора программы.`,()=>this._run('select',d.roles.program,program));});
+    this._listen(root.querySelector('[data-apply-program]'),'click',()=>{const d=this._device(),program=this._program(d);this._confirm('Применить программу?',`${shortProgram(program)} · ${d.name}. Прибор может начать работу сразу после выбора программы.`,()=>this._run('select',d.roles.program,program));});
     root.querySelectorAll('[data-role]').forEach(b=>b.onclick=()=>{
       const d=this._device(),role=b.dataset.role,id=d.roles[role],actual=this._state(d.roles.program)?.state;
       if(role==='start'&&this._schedule(d)?.enabled){const p=schedulePreview(this._hass,d,this._schedule(d));if(p.error)return this._notify(p.error,true);return this._confirm('Запустить программу?',`${d.name} · ${shortProgram(actual)}. Начало ${this._scheduleClock(p.start)}, окончание примерно ${this._scheduleClock(p.end)}.`,()=>this._runScheduled(d));}
