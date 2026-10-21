@@ -116,3 +116,24 @@ test('one timer slider and one common start action without a second timeline tra
   assert.doesNotMatch(html,/schedule-track|Запустить с таймером/);
   card._tab='commands';assert.doesNotMatch(card._detail(),/data-role="start"/);
 });
+test('program choice and duration come before parameters, summary and the only start button',()=>{
+  const {hass,device}=context();
+  const card=Object.create(HomeConnectControlCard.prototype);
+  Object.assign(card,{_hass:hass,_config:{},_models:[device],_deviceId:device.id,_tab:'programs',_draftPrograms:new Map(),_draftValues:new Map(),_favorites:[]});
+  const html=card._detail();
+  const choice=html.indexOf('class="panel program-choice"'),duration=html.indexOf('class="program-duration"'),parameters=html.indexOf('class="panel program-parameters"'),summary=html.indexOf('class="panel program-order"'),start=html.indexOf('data-role="start"');
+  assert.ok(choice<duration&&duration<parameters&&parameters<summary&&summary<start);
+  assert.match(html,/Время мойки <strong>2 ч 0 мин/);
+});
+test('one appliance opens directly, including home navigation and device removal',()=>{
+  const f=fixture(),id='dishwasher-device';
+  const card=Object.create(HomeConnectControlCard.prototype);
+  Object.assign(card,{_hass:f.hass,_config:{},_entities:f.registry.filter(e=>e.device_id===id),_devices:f.devices,_page:'home',_tab:'programs',_draftPrograms:new Map(),_draftValues:new Map(),_favorites:[],_render(){}});
+  card._updateModels();assert.equal(card._page,'device');assert.equal(card._deviceId,id);
+  card._navigate('home');assert.equal(card._page,'device');assert.equal(card._deviceId,id);
+  assert.doesNotMatch(card._detail(),/class="back"/);
+  card._navigate('favorites');card._updateModels();assert.equal(card._page,'favorites');
+  card._entities=f.registry;card._navigate('home');card._updateModels();card._navigate('home');assert.equal(card._page,'home');
+  card._navigate('device','oven-device');card._entities=f.registry.filter(e=>e.device_id===id);card._updateModels();assert.equal(card._deviceId,id);
+  card._entities=[];card._updateModels();assert.equal(card._page,'home');
+});
