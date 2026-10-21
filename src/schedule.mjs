@@ -13,6 +13,9 @@ export function programSeconds(hass,device){
   }
   return null;
 }
+export function preferredScheduleMode(hass,device){
+  return device.roles.startIn&&controllable(hass,device.roles.startIn)?'start':'finish';
+}
 export function scheduleRange(hass,device,mode='finish'){
   const id=device.roles[mode==='finish'?'finishIn':'startIn'];
   if(!id||!controllable(hass,id))return {error:mode==='finish'?'Завершение ко времени недоступно в интеграции.':'Отложенный старт недоступен в интеграции.'};
@@ -27,7 +30,7 @@ export function scheduleRange(hass,device,mode='finish'){
   // Limit this control to the next 48 hours; preserve the appliance's step grid.
   const upper=min+Math.floor((Math.min(max,172800/unit)-min)/step+1e-9)*step;
   if(lower>upper)return {error:'Длительность программы выходит за доступный диапазон таймера.'};
-  const sliderStep=step*Math.max(1,Math.ceil(900/(unit*step)));
+  const sliderStep=step*Math.max(1,Math.ceil(60/(unit*step)));
   const sliderMax=lower+Math.floor((upper-lower)/sliderStep+1e-9)*sliderStep;
   return {id,mode,unit,min,max,step,lower,upper,sliderStep,sliderMax,duration};
 }

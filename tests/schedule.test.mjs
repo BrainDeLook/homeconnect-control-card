@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {buildDevices} from '../src/core.mjs';
 import {HomeConnectControlCard} from '../src/card.mjs';
-import {scheduleRange,schedulePreview,planScheduledStart} from '../src/schedule.mjs';
+import {scheduleRange,schedulePreview,planScheduledStart,preferredScheduleMode} from '../src/schedule.mjs';
 
 const NOW=Date.parse('2026-10-21T20:30:00Z');
 function context(){
@@ -114,7 +114,32 @@ test('one timer slider and one common start action without a second timeline tra
   assert.equal((html.match(/type="range"/g)||[]).length,1);
   assert.equal((html.match(/data-role="start"/g)||[]).length,1);
   assert.doesNotMatch(html,/schedule-track|Запустить с таймером/);
+  assert.doesNotMatch(html,/data-schedule-mode|Начать в|Закончить к/);
   card._tab='commands';assert.doesNotMatch(card._detail(),/data-role="start"/);
+});
+test('timer automatically prefers writable StartIn and falls back to FinishIn',()=>{
+  const {hass,device,draft}=context();
+  assert.equal(preferredScheduleMode(hass,device),'start');
+  hass.states[device.roles.startIn].state='unavailable';
+  assert.equal(preferredScheduleMode(hass,device),'finish');
+  draft.mode=preferredScheduleMode(hass,device);
+  const p=schedulePreview(hass,device,draft,NOW);
+  assert.equal(p.end-p.start,7200000);
+  assert.equal(planScheduledStart(hass,device,draft,NOW).data.finish_in.seconds,14400);
+});
+test('minute adjustment preserves native device precision and never sends a command',()=>{
+  const {hass,device,draft,calls}=context();draft.base=Date.now();draft.mode='start';draft.value=3600;
+  const card=Object.create(HomeConnectControlCard.prototype);
+  Object.assign(card,{_hass:hass,_models:[device],_deviceId:device.id,_schedules:new Map([[device.id,draft]]),_render(){}});
+  assert.equal(scheduleRange(hass,device,'start').sliderStep,60);
+  card._adjustSchedule(1);assert.equal(draft.value,3660);
+  card._adjustSchedule(-1);assert.equal(draft.value,3600);
+  draft.value=0;card._adjustSchedule(-1);assert.equal(draft.value,0);
+  const range=scheduleRange(hass,device,'start');draft.value=range.sliderMax;
+  card._adjustSchedule(1);assert.equal(draft.value,range.sliderMax);
+  hass.states[device.roles.startIn].attributes.step=300;
+  assert.equal(scheduleRange(hass,device,'start').sliderStep,300);
+  assert.equal(calls.length,0);
 });
 test('program choice and duration come before parameters, summary and the only start button',()=>{
   const {hass,device}=context();

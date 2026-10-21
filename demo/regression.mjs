@@ -1,4 +1,4 @@
-import '../dist/homeconnect-control-card.js?regression=015';
+import '../dist/homeconnect-control-card.js?regression=017';
 import {fixture} from '../tests/fixture.mjs';
 const output=document.querySelector('#result');
 const results=[];

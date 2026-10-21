@@ -22,12 +22,12 @@ This repository is installed as a HACS custom repository; it is not in the defau
 
 ![Mobile interface with fictional demo appliances](docs/controls.png)
 
-Manual installation: copy `dist/homeconnect-control-card.js` to `/config/www/homeconnect-control-card.js` and register `/local/homeconnect-control-card.js?v=0.1.6` as a JavaScript module resource.
+Manual installation: copy `dist/homeconnect-control-card.js` to `/config/www/homeconnect-control-card.js` and register `/local/homeconnect-control-card.js?v=0.1.7` as a JavaScript module resource.
 
-Version 0.1.6. Entity/service compatibility was inspected against integration 1.12.5. Tested with unit tests and a browser fixture simulating Home Assistant; real HA and appliance verification is pending. This is a separate frontend card and does not modify the integration.
+Version 0.1.7. Entity/service compatibility was inspected against integration 1.12.5. Tested with unit tests and a browser fixture simulating Home Assistant; real HA and appliance verification is pending. This is a separate frontend card and does not modify the integration.
 
 Build: `node build.mjs`. Tests: `node --test tests/*.test.mjs`. No npm dependencies.
 
 Dishwashers with a separate start entity select a program immediately when clicked; starting uses its own button. Duration comes from HA sensors, when provided before starting. For START_ONLY profiles use `program_selection: confirm`: integration 1.12.5 does not expose per-program execution modes and its select service can start those programs.
 
-Version 0.1.6 brings a compact main control tab, mobile program picker, and a start/finish-time slider with both timestamps. Scheduling needs a writable StartIn/FinishIn number entity, a known program duration, and the integration `homeconnect_ws.start_program` action. The slider only previews; the start button submits one device-side timer request.
+Version 0.1.7 brings a compact main control tab, mobile program picker, and a start/finish-time slider with both timestamps. Scheduling needs a writable StartIn/FinishIn number entity, a known program duration, and the integration `homeconnect_ws.start_program` action. The slider only previews; the start button submits one device-side timer request.

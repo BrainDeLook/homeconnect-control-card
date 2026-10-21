@@ -1,5 +1,5 @@
 export const INTEGRATION = 'homeconnect_ws';
-export const VERSION = '0.1.6';
+export const VERSION = '0.1.7';
 export const ROLES = {
   program:['select_program'], active:['sensor_active_program'], operation:['sensor_operation_state'],
   progress:['sensor_program_progress'], remaining:['sensor_remaining_program_time'], elapsed:['sensor_elapsed_program_time'],

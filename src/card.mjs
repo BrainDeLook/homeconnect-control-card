@@ -1,7 +1,7 @@
 import {updateCardDOM} from './dom.mjs';
 import { INTEGRATION, VERSION, ROLES, TYPE_NAMES, entityDomain, buildDevices, entityLabel, available, controllable, isReadonly, formatState, durationText, shortProgram, immediateProgramSelection, selectedProgramDuration, controlGroup, validateConfig, callAction } from './core.mjs';
 import { esc, icon, illustration, CSS, SCHEDULE_CSS } from './view.mjs';
-import {scheduleRange,schedulePreview,planScheduledStart,programSeconds} from './schedule.mjs';
+import {scheduleRange,schedulePreview,planScheduledStart,programSeconds,preferredScheduleMode} from './schedule.mjs';
 
 const REGISTRY_CACHE = new WeakMap();
 async function registries(hass, force=false) {
@@ -89,7 +89,7 @@ export class HomeConnectControlCard extends HTMLElementBase {
     const range=scheduleRange(this._hass,device,mode);
     if(range.error)return this._notify(range.error,true);
     this._schedules??=new Map();
-    this._schedules.set(device.id,{enabled:true,mode,base:Date.now(),value:Math.min(range.sliderMax,range.lower+range.sliderStep*4),program:this._state(device.roles.program)?.state});
+    this._schedules.set(device.id,{enabled:true,mode,base:Date.now(),value:Math.min(range.sliderMax,range.lower+range.sliderStep*Math.max(1,Math.ceil(3600/(range.unit*range.sliderStep)))),program:this._state(device.roles.program)?.state});
     this._render(true);
   }
   _scheduleClock(timestamp){
@@ -106,12 +106,20 @@ export class HomeConnectControlCard extends HTMLElementBase {
   _schedulePanel(device){
     if(!device.roles.startIn&&!device.roles.finishIn)return '';
     const draft=this._schedule(device),enabled=!!draft?.enabled;
-    const mode=draft?.mode||(!scheduleRange(this._hass,device,'finish').error?'finish':'start');
+    const mode=draft?.mode||preferredScheduleMode(this._hass,device);
     const range=scheduleRange(this._hass,device,mode);
     const ready=['ready','inactive'].includes(this._operation(device));
     const supported=!!this._hass.services?.homeconnect_ws?.start_program&&!!device.roles.start&&ready&&!range.error;
     const disabled=this._busy||this._pendingPrograms?.has(device.id)||!supported;
-    return `<section class="schedule-box"><div class="schedule-heading"><div><strong>Запустить ко времени</strong><p>Начать в удобное время или закончить к сроку</p></div><button role="switch" aria-checked="${enabled}" aria-label="Запустить ко времени" data-schedule-toggle class="toggle ${enabled?'on':''}" ${!enabled&&disabled?'disabled':''}><i></i></button></div>${enabled?`<div class="schedule-modes">${[['start','Начать в'],['finish','Закончить к']].map(([value,label])=>`<button data-schedule-mode="${value}" class="${mode===value?'active':''}" ${this._busy||scheduleRange(this._hass,device,value).error?'disabled':''}>${label}</button>`).join('')}</div><div data-schedule-times>${this._scheduleTimes(device)}</div>${!range.error?`<label class="schedule-slider-label">${mode==='finish'?'Время окончания':'Время начала'}<input class="schedule-slider" type="range" data-schedule-slider min="${range.lower}" max="${range.sliderMax}" step="${range.sliderStep}" value="${draft.value}" aria-label="${mode==='finish'?'Время окончания':'Время начала'} мойки" ${disabled?'disabled':''}></label><div class="schedule-range"><span>Раньше</span><span>Позже · до ${esc(durationText({state:String(range.sliderMax*range.unit),attributes:{unit_of_measurement:'s'}}))}</span></div>`:''}<p class="hint">Окончание приблизительное. Таймер применяется при запуске.</p>`:!supported?`<p class="hint">${esc(!ready?'Таймер настраивается до запуска программы.':range.error||'Для таймера нужно действие homeconnect_ws.start_program.')}</p>`:''}</section>`;
+    return `<section class="schedule-box"><div class="schedule-heading"><div><strong>Запустить ко времени</strong></div><button role="switch" aria-checked="${enabled}" aria-label="Запустить ко времени" data-schedule-toggle class="toggle ${enabled?'on':''}" ${!enabled&&disabled?'disabled':''}><i></i></button></div>${enabled?`<div data-schedule-times>${this._scheduleTimes(device)}</div>${!range.error?`<label class="schedule-slider-label">Выберите время начала мойки<input class="schedule-slider" type="range" data-schedule-slider min="${range.lower}" max="${range.sliderMax}" step="${range.sliderStep}" value="${draft.value}" aria-label="Время начала мойки" ${disabled?'disabled':''}></label><div class="schedule-range"><span>Раньше</span><span>Позже</span></div><div class="schedule-fine"><button class="button secondary" data-schedule-adjust="-1" aria-label="Выбрать время раньше" ${disabled?'disabled':''}>−</button><span>Шаг ${esc(durationText({state:String(range.sliderStep*range.unit),attributes:{unit_of_measurement:'s'}}))}</span><button class="button secondary" data-schedule-adjust="1" aria-label="Выбрать время позже" ${disabled?'disabled':''}>+</button></div>`:''}<p class="hint">Окончание приблизительное. Таймер применяется при запуске.</p>`:!supported?`<p class="hint">${esc(!ready?'Таймер настраивается до запуска программы.':range.error||'Для таймера нужно действие homeconnect_ws.start_program.')}</p>`:''}</section>`;
+  }
+  _adjustSchedule(direction){
+    const device=this._device(),draft=this._schedule(device);
+    if(!draft||this._busy||this._pendingPrograms?.has(device.id))return;
+    const range=scheduleRange(this._hass,device,draft.mode);
+    if(range.error)return;
+    draft.value=Math.max(range.lower,Math.min(range.sliderMax,draft.value+direction*range.sliderStep));
+    this._render(true);
   }
   async _runScheduled(device){
     if(this._busy||this._pendingPrograms?.has(device.id))return;
@@ -246,8 +254,8 @@ export class HomeConnectControlCard extends HTMLElementBase {
     this._binding?.abort();this._binding=new AbortController();
     const root=this.shadowRoot;
     this._listen(root.querySelector('[data-refresh]'),'click',()=>this._ensureRegistry(true));
-    this._listen(root.querySelector('[data-schedule-toggle]'),'click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,!scheduleRange(this._hass,d,'finish').error?'finish':'start');});
-    root.querySelectorAll('[data-schedule-mode]').forEach(b=>b.onclick=()=>this._newSchedule(this._device(),b.dataset.scheduleMode));
+    this._listen(root.querySelector('[data-schedule-toggle]'),'click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,preferredScheduleMode(this._hass,d));});
+    root.querySelectorAll('[data-schedule-adjust]').forEach(button=>button.onclick=()=>this._adjustSchedule(Number(button.dataset.scheduleAdjust)));
     this._listen(root.querySelector('[data-schedule-slider]'),'input',event=>{const d=this._device(),draft=this._schedule(d);if(!draft)return;draft.value=Number(event.target.value);root.querySelector('[data-schedule-times]').innerHTML=this._scheduleTimes(d);const summary=root.querySelector('[data-order-summary-times]');if(summary)summary.innerHTML=this._summaryTimes(d);});
     this._listen(root.querySelector('[data-schedule-slider]'),'change',()=>this._render(true));
     root.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>this._navigate(b.dataset.page));

@@ -1,7 +1,7 @@
-// Home Connect Control Card 0.1.6 — local UI for Home Assistant.
+// Home Connect Control Card 0.1.7 — local UI for Home Assistant.
 // Integration remains responsible for all appliance communication.
 const INTEGRATION = 'homeconnect_ws';
-const VERSION = '0.1.6';
+const VERSION = '0.1.7';
 const ROLES = {
   program:['select_program'], active:['sensor_active_program'], operation:['sensor_operation_state'],
   progress:['sensor_program_progress'], remaining:['sensor_remaining_program_time'], elapsed:['sensor_elapsed_program_time'],
@@ -202,6 +202,9 @@ function programSeconds(hass,device){
   }
   return null;
 }
+function preferredScheduleMode(hass,device){
+  return device.roles.startIn&&controllable(hass,device.roles.startIn)?'start':'finish';
+}
 function scheduleRange(hass,device,mode='finish'){
   const id=device.roles[mode==='finish'?'finishIn':'startIn'];
   if(!id||!controllable(hass,id))return {error:mode==='finish'?'Завершение ко времени недоступно в интеграции.':'Отложенный старт недоступен в интеграции.'};
@@ -216,7 +219,7 @@ function scheduleRange(hass,device,mode='finish'){
   // Limit this control to the next 48 hours; preserve the appliance's step grid.
   const upper=min+Math.floor((Math.min(max,172800/unit)-min)/step+1e-9)*step;
   if(lower>upper)return {error:'Длительность программы выходит за доступный диапазон таймера.'};
-  const sliderStep=step*Math.max(1,Math.ceil(900/(unit*step)));
+  const sliderStep=step*Math.max(1,Math.ceil(60/(unit*step)));
   const sliderMax=lower+Math.floor((upper-lower)/sliderStep+1e-9)*sliderStep;
   return {id,mode,unit,min,max,step,lower,upper,sliderStep,sliderMax,duration};
 }
@@ -315,6 +318,8 @@ const SCHEDULE_CSS = `
 .frame{--hc-accent:#347fe2;--hc-soft:color-mix(in srgb,var(--hc-accent) 10%,var(--hc-surface))}.body{padding:16px}.panel{border-radius:16px;box-shadow:0 2px 8px #142d4b08}.ordered-controls .panel-title{padding:15px 16px}.ordered-controls .panel-title h2{font-size:18px;line-height:1.35;font-weight:650}.program-mobile{padding:12px 14px}.program-mobile select{font-size:17px;min-height:52px;border-radius:12px;padding:12px}.program-duration{font-size:15px;padding:12px 16px;line-height:1.5}.program-duration strong{font-size:16px}.control-row,.main-controls .control-row{padding:13px 16px;min-height:68px}.control-name label,.main-controls .control-name label{font-size:16px;line-height:1.4;font-weight:550}.control-name small{font-size:13px;line-height:1.45}.control-name{min-width:0}.control-end{flex-shrink:0}.control-row .more{font-size:22px;min-width:40px;min-height:44px}.control-row input[type=number],.control-row select{font-size:16px;min-height:46px}.toggle{width:58px;height:44px;border-radius:22px;touch-action:manipulation;background:color-mix(in srgb,var(--hc-muted) 55%,var(--hc-surface))}.toggle:before{width:28px;height:28px;top:8px;left:5px}.toggle.on:before{left:25px}.toggle:disabled{opacity:.55}.schedule-heading strong{font-size:16px;line-height:1.4}.schedule-box{padding:14px!important;border-radius:12px;background:var(--hc-bg)}.schedule-heading{gap:12px}.schedule-modes{gap:4px;margin:12px 0!important}.schedule-modes button{font-size:15px;min-height:46px;padding:10px 6px}.schedule-times strong{font-size:17px;line-height:1.4}.schedule-times span{font-size:13px}.schedule-slider-label{font-size:14px;line-height:1.5}input.schedule-slider{height:44px!important;margin-top:6px!important;touch-action:pan-y}.schedule-range{font-size:12px;line-height:1.5}.schedule-box .hint{font-size:13px;line-height:1.5}.order-program{font-size:18px;line-height:1.4}.order-program>span{font-size:15px}.order-options>span{font-size:14px;padding:7px 10px;line-height:1.35}.order-time{font-size:14px;line-height:1.6}.ordered-controls .button{font-size:16px;min-height:52px;border-radius:12px;line-height:1.3}.program-order .button.primary{font-size:18px;font-weight:650;background:var(--hc-accent);box-shadow:0 3px 9px #347fe224}.hint,.notice{font-size:14px;line-height:1.5}.extra-settings summary{font-size:15px;min-height:48px;padding:14px 16px}.tabs button{font-size:14px;min-height:46px;padding:11px 10px}.footer button{font-size:13px;min-height:48px}.device-head h1{font-size:22px;line-height:1.3}.device-head .button{min-width:48px;min-height:48px}.program-order .pad{padding:16px}.program-order .actions{gap:10px}.hero:not(.idle) .live{background:linear-gradient(115deg,#224870,#347fe2);color:#fff;border:0;border-radius:16px;padding:16px}.hero:not(.idle) .live-program{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.hero:not(.idle) .live-program>.muted{grid-column:1 / -1;max-width:none;color:#fff;font-size:14px}.hero:not(.idle) .live-program h2{display:block;font-size:19px;color:#fff;margin:0}.hero:not(.idle) .metrics{gap:6px;margin:0}.hero:not(.idle) .metrics strong{font-size:22px;color:#fff;line-height:1.4}.hero:not(.idle) .metrics span{color:#e8f1ff;font-size:13px}.hero:not(.idle) .metrics>div:nth-child(2){display:none}.hero:not(.idle) .metrics svg{display:none}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--hc-accent);outline-offset:3px}
 }
 @media(max-width:700px){.device-head .compact-refresh{display:none!important}.device-head h1{font-size:20px}.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.tabs button{min-width:0;padding:12px 3px;font-size:14px;text-align:center}}@container(max-width:700px){.device-head .compact-refresh{display:none!important}.device-head h1{font-size:20px}.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.tabs button{min-width:0;padding:12px 3px;font-size:14px;text-align:center}}
+
+input.schedule-slider{appearance:none!important;-webkit-appearance:none!important;display:block!important;width:100%!important;height:52px!important;min-height:52px!important;margin:8px 0 0!important;padding:0!important;border:0!important;cursor:pointer;background:transparent!important;touch-action:pan-y}input.schedule-slider::-webkit-slider-runnable-track{height:12px;background:var(--hc-line);border:1px solid color-mix(in srgb,var(--hc-muted) 45%,var(--hc-surface));border-radius:10px}input.schedule-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:34px;height:34px;margin-top:-12px;border-radius:50%;background:var(--hc-accent);border:4px solid var(--hc-surface);box-shadow:0 1px 6px #0005}input.schedule-slider::-moz-range-track{height:12px;background:var(--hc-line);border:1px solid var(--hc-muted);border-radius:10px}input.schedule-slider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--hc-accent);border:4px solid var(--hc-surface);box-shadow:0 1px 6px #0005}.schedule-fine{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0}.schedule-fine .button{width:52px;min-width:52px;min-height:48px;font-size:25px;line-height:1;padding:8px;border-radius:12px}.schedule-fine>span{font-size:14px;color:var(--hc-muted)}
 `;
 const icons = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
@@ -441,7 +446,7 @@ class HomeConnectControlCard extends HTMLElementBase {
     const range=scheduleRange(this._hass,device,mode);
     if(range.error)return this._notify(range.error,true);
     this._schedules??=new Map();
-    this._schedules.set(device.id,{enabled:true,mode,base:Date.now(),value:Math.min(range.sliderMax,range.lower+range.sliderStep*4),program:this._state(device.roles.program)?.state});
+    this._schedules.set(device.id,{enabled:true,mode,base:Date.now(),value:Math.min(range.sliderMax,range.lower+range.sliderStep*Math.max(1,Math.ceil(3600/(range.unit*range.sliderStep)))),program:this._state(device.roles.program)?.state});
     this._render(true);
   }
   _scheduleClock(timestamp){
@@ -458,12 +463,20 @@ class HomeConnectControlCard extends HTMLElementBase {
   _schedulePanel(device){
     if(!device.roles.startIn&&!device.roles.finishIn)return '';
     const draft=this._schedule(device),enabled=!!draft?.enabled;
-    const mode=draft?.mode||(!scheduleRange(this._hass,device,'finish').error?'finish':'start');
+    const mode=draft?.mode||preferredScheduleMode(this._hass,device);
     const range=scheduleRange(this._hass,device,mode);
     const ready=['ready','inactive'].includes(this._operation(device));
     const supported=!!this._hass.services?.homeconnect_ws?.start_program&&!!device.roles.start&&ready&&!range.error;
     const disabled=this._busy||this._pendingPrograms?.has(device.id)||!supported;
-    return `<section class="schedule-box"><div class="schedule-heading"><div><strong>Запустить ко времени</strong><p>Начать в удобное время или закончить к сроку</p></div><button role="switch" aria-checked="${enabled}" aria-label="Запустить ко времени" data-schedule-toggle class="toggle ${enabled?'on':''}" ${!enabled&&disabled?'disabled':''}><i></i></button></div>${enabled?`<div class="schedule-modes">${[['start','Начать в'],['finish','Закончить к']].map(([value,label])=>`<button data-schedule-mode="${value}" class="${mode===value?'active':''}" ${this._busy||scheduleRange(this._hass,device,value).error?'disabled':''}>${label}</button>`).join('')}</div><div data-schedule-times>${this._scheduleTimes(device)}</div>${!range.error?`<label class="schedule-slider-label">${mode==='finish'?'Время окончания':'Время начала'}<input class="schedule-slider" type="range" data-schedule-slider min="${range.lower}" max="${range.sliderMax}" step="${range.sliderStep}" value="${draft.value}" aria-label="${mode==='finish'?'Время окончания':'Время начала'} мойки" ${disabled?'disabled':''}></label><div class="schedule-range"><span>Раньше</span><span>Позже · до ${esc(durationText({state:String(range.sliderMax*range.unit),attributes:{unit_of_measurement:'s'}}))}</span></div>`:''}<p class="hint">Окончание приблизительное. Таймер применяется при запуске.</p>`:!supported?`<p class="hint">${esc(!ready?'Таймер настраивается до запуска программы.':range.error||'Для таймера нужно действие homeconnect_ws.start_program.')}</p>`:''}</section>`;
+    return `<section class="schedule-box"><div class="schedule-heading"><div><strong>Запустить ко времени</strong></div><button role="switch" aria-checked="${enabled}" aria-label="Запустить ко времени" data-schedule-toggle class="toggle ${enabled?'on':''}" ${!enabled&&disabled?'disabled':''}><i></i></button></div>${enabled?`<div data-schedule-times>${this._scheduleTimes(device)}</div>${!range.error?`<label class="schedule-slider-label">Выберите время начала мойки<input class="schedule-slider" type="range" data-schedule-slider min="${range.lower}" max="${range.sliderMax}" step="${range.sliderStep}" value="${draft.value}" aria-label="Время начала мойки" ${disabled?'disabled':''}></label><div class="schedule-range"><span>Раньше</span><span>Позже</span></div><div class="schedule-fine"><button class="button secondary" data-schedule-adjust="-1" aria-label="Выбрать время раньше" ${disabled?'disabled':''}>−</button><span>Шаг ${esc(durationText({state:String(range.sliderStep*range.unit),attributes:{unit_of_measurement:'s'}}))}</span><button class="button secondary" data-schedule-adjust="1" aria-label="Выбрать время позже" ${disabled?'disabled':''}>+</button></div>`:''}<p class="hint">Окончание приблизительное. Таймер применяется при запуске.</p>`:!supported?`<p class="hint">${esc(!ready?'Таймер настраивается до запуска программы.':range.error||'Для таймера нужно действие homeconnect_ws.start_program.')}</p>`:''}</section>`;
+  }
+  _adjustSchedule(direction){
+    const device=this._device(),draft=this._schedule(device);
+    if(!draft||this._busy||this._pendingPrograms?.has(device.id))return;
+    const range=scheduleRange(this._hass,device,draft.mode);
+    if(range.error)return;
+    draft.value=Math.max(range.lower,Math.min(range.sliderMax,draft.value+direction*range.sliderStep));
+    this._render(true);
   }
   async _runScheduled(device){
     if(this._busy||this._pendingPrograms?.has(device.id))return;
@@ -598,8 +611,8 @@ class HomeConnectControlCard extends HTMLElementBase {
     this._binding?.abort();this._binding=new AbortController();
     const root=this.shadowRoot;
     this._listen(root.querySelector('[data-refresh]'),'click',()=>this._ensureRegistry(true));
-    this._listen(root.querySelector('[data-schedule-toggle]'),'click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,!scheduleRange(this._hass,d,'finish').error?'finish':'start');});
-    root.querySelectorAll('[data-schedule-mode]').forEach(b=>b.onclick=()=>this._newSchedule(this._device(),b.dataset.scheduleMode));
+    this._listen(root.querySelector('[data-schedule-toggle]'),'click',()=>{const d=this._device();if(this._schedule(d)?.enabled){this._schedules.delete(d.id);this._render(true);}else this._newSchedule(d,preferredScheduleMode(this._hass,d));});
+    root.querySelectorAll('[data-schedule-adjust]').forEach(button=>button.onclick=()=>this._adjustSchedule(Number(button.dataset.scheduleAdjust)));
     this._listen(root.querySelector('[data-schedule-slider]'),'input',event=>{const d=this._device(),draft=this._schedule(d);if(!draft)return;draft.value=Number(event.target.value);root.querySelector('[data-schedule-times]').innerHTML=this._scheduleTimes(d);const summary=root.querySelector('[data-order-summary-times]');if(summary)summary.innerHTML=this._summaryTimes(d);});
     this._listen(root.querySelector('[data-schedule-slider]'),'change',()=>this._render(true));
     root.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>this._navigate(b.dataset.page));
