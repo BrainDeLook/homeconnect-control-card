@@ -87,3 +87,32 @@ test('main control tab includes settings and timer without brand header',()=>{
   assert.match(html,/data-schedule-toggle/);assert.match(html,/data-toggle="switch.kitchen_child_lock"/);
   assert.match(html,/data-role="start"/);assert.match(html,/data-program=/);
 });
+test('alternative power and delay entities do not duplicate dedicated controls',()=>{
+  const {hass,registry,devices}=fixture();
+  for(const [key,id,options] of [
+    ['select_power_state','select.extra_power',['on','off']],
+    ['select_start_in','select.extra_start',['0:00','1:00']],
+    ['select_finish_in','select.extra_finish',['0:00','1:00']],
+  ]){
+    registry.push({entity_id:id,unique_id:`device-${key}`,platform:'homeconnect_ws',device_id:'dishwasher-device'});
+    hass.states[id]={state:options[0],attributes:{options}};
+  }
+  const device=buildDevices(hass,registry,devices).find(d=>d.type==='Dishwasher');
+  const card=Object.create(HomeConnectControlCard.prototype);
+  Object.assign(card,{_hass:hass,_config:{},_models:[device],_deviceId:device.id,_tab:'programs',_draftPrograms:new Map(),_draftValues:new Map(),_favorites:[]});
+  for(const tab of ['programs','settings']){
+    card._tab=tab;const html=card._detail();
+    assert.doesNotMatch(html,/data-input="select\.extra_(?:power|start|finish)"/);
+    assert.match(html,/data-toggle="switch.kitchen_power"/);
+  }
+});
+test('one timer slider and one common start action without a second timeline track',()=>{
+  const {hass,device,draft}=context();draft.base=Date.now();
+  const card=Object.create(HomeConnectControlCard.prototype);
+  Object.assign(card,{_hass:hass,_config:{},_models:[device],_deviceId:device.id,_tab:'programs',_draftPrograms:new Map(),_draftValues:new Map(),_favorites:[],_schedules:new Map([[device.id,draft]])});
+  const html=card._detail();
+  assert.equal((html.match(/type="range"/g)||[]).length,1);
+  assert.equal((html.match(/data-role="start"/g)||[]).length,1);
+  assert.doesNotMatch(html,/schedule-track|Запустить с таймером/);
+  card._tab='commands';assert.doesNotMatch(card._detail(),/data-role="start"/);
+});

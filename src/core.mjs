@@ -1,5 +1,5 @@
 export const INTEGRATION = 'homeconnect_ws';
-export const VERSION = '0.1.2';
+export const VERSION = '0.1.3';
 export const ROLES = {
   program:['select_program'], active:['sensor_active_program'], operation:['sensor_operation_state'],
   progress:['sensor_program_progress'], remaining:['sensor_remaining_program_time'], elapsed:['sensor_elapsed_program_time'],
@@ -120,6 +120,9 @@ export function durationText(state) {
 }
 export function controlGroup(hass, entry, device) {
   if (Object.values(device.roles).includes(entry.entity_id)) return 'primary';
+  const key=entry.key||entityKey(entry);
+  if(device.roles.power && ROLES.power.includes(key))return 'primary';
+  if((device.roles.startIn||device.roles.finishIn) && /^(?:number|select)_(?:start|finish)_in$/.test(key))return 'primary';
   const domain=entityDomain(entry.entity_id);
   if (['sensor','binary_sensor'].includes(domain)) return 'status';
   if (domain==='button') return 'commands';
