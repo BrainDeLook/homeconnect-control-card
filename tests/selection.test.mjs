@@ -29,6 +29,7 @@ test('clicking the current program makes no request',async()=>{
 test('start remains disabled until HA confirms the requested program',async()=>{
   const {card,device,hass}=context();
   hass.states[device.roles.start].state='unknown';
+  hass.states[device.roles.operation].state='ready';
   const option=hass.states[device.roles.program].attributes.options[1];
   await card._chooseProgram(device,option);
   assert.match(card._programButtons(device),/data-role="start" disabled/);

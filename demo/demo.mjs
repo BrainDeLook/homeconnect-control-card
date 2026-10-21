@@ -1,8 +1,14 @@
-import '../dist/homeconnect-control-card.js?build=final';
+import '../dist/homeconnect-control-card.js?build=012release';
 import { fixture } from '../tests/fixture.mjs';
 const f=fixture();
 const card=document.querySelector('homeconnect-control-card');
 let hass=f.hass;
+hass.services={homeconnect_ws:{start_program:{}}};
+hass.states['sensor.kitchen_operation'].state='ready';
+hass.states['sensor.kitchen_active'].state='unknown';
+hass.states['sensor.kitchen_time'].state='2.5';
+hass.states['button.kitchen_start'].state='unknown';
+hass.states['button.kitchen_stop'].state='unavailable';
 card.setConfig({type:'custom:homeconnect-control-card',title:'Ваш дом, ближе.'});
 card.hass=hass;
 const editorButton=document.createElement('button');editorButton.textContent='Редактор карточки';
@@ -26,6 +32,7 @@ hass.callService=async(domain,service,data,target)=>{
   const li=document.createElement('li');li.textContent=JSON.stringify({domain,service,data,target});
   document.querySelector('#call-list').append(li);
   document.querySelector('#calls p').textContent='Только имитация API Home Assistant. Внешних запросов к технике нет.';
+  if(domain==='homeconnect_ws'){hass.states['sensor.kitchen_operation']={...hass.states['sensor.kitchen_operation'],state:'delayedstart'};card.hass={...hass};return;}
   const id=target.entity_id,state=hass.states[id];
   let next=state.state;
   if(service==='select_option')next=data.option;

@@ -26,6 +26,8 @@ export function fixture() {
     add(device.id,`button.${prefix}_pause`,'button_pause_program',index===0?'unknown':'unavailable');
     add(device.id,`button.${prefix}_resume`,'button_resume_program','unavailable');
     if(index===0) {
+      add(device.id,'number.kitchen_start_in','number_start_in','0',{readonly:false,min:0,max:86400,step:60,unit_of_measurement:'s'});
+      add(device.id,'number.kitchen_finish_in','number_finish_in','0',{readonly:false,min:0,max:86400,step:60,unit_of_measurement:'s'});
       add(device.id,'switch.extra_dry','switch_extra_dry_option','off',{readonly:false});
       add(device.id,'switch.fast_mode','switch_vario_speed_plus','off',{readonly:false});
       add(device.id,'switch.hygiene_locked','switch_hygiene_plus','on',{readonly:true});

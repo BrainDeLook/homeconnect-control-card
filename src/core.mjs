@@ -1,11 +1,12 @@
 export const INTEGRATION = 'homeconnect_ws';
-export const VERSION = '0.1.1';
+export const VERSION = '0.1.2';
 export const ROLES = {
   program:['select_program'], active:['sensor_active_program'], operation:['sensor_operation_state'],
   progress:['sensor_program_progress'], remaining:['sensor_remaining_program_time'], elapsed:['sensor_elapsed_program_time'],
   door:['sensor_door_state','binary_sensor_door_state'], remote:['binary_remote_start_allowed','binary_sensor_remote_start_allowed'],
   start:['button_start_program'], stop:['button_abort_program'], pause:['button_pause_program'], resume:['button_resume_program'],
   power:['switch_power_state','select_power_state'], estimated:['sensor_estimated_remaining_program_time'],
+  startIn:['number_start_in'],finishIn:['number_finish_in'],
 };
 export const TYPE_NAMES = {Dishwasher:'Посудомоечная машина',Washer:'Стиральная машина',WashingMachine:'Стиральная машина',WasherDryer:'Стирально-сушильная машина',Dryer:'Сушильная машина',Oven:'Духовой шкаф',Hob:'Варочная панель',Hood:'Вытяжка',Fridge:'Холодильник',FridgeFreezer:'Холодильник',Refrigerator:'Холодильник',Freezer:'Морозильник',CoffeeMaker:'Кофемашина',CoffeeMachine:'Кофемашина'};
 export const VALUE_NAMES = {on:'Включено',off:'Выключено',standby:'Ожидание',run:'Выполняется',ready:'Готов к работе',inactive:'Неактивен',pause:'Пауза',finished:'Завершено',delayedstart:'Отложенный запуск',delayed_start:'Отложенный запуск',actionrequired:'Требуется действие',action_required:'Требуется действие',error:'Ошибка',aborting:'Остановка',open:'Открыта',closed:'Закрыта',locked:'Заблокирована',present:'Активно',confirmed:'Подтверждено',unknown:'Нет данных',unavailable:'Нет связи',mains_off:'Выключено'};
