@@ -1,4 +1,4 @@
-import '../dist/homeconnect-control-card.js?build=015final';
+import '../dist/homeconnect-control-card.js?build=016';
 import { fixture } from '../tests/fixture.mjs';
 const f=fixture();
 if(new URLSearchParams(location.search).has('single')){f.registry.splice(0,f.registry.length,...f.registry.filter(e=>e.device_id==='dishwasher-device'));f.devices.splice(0,f.devices.length,...f.devices.filter(d=>d.id==='dishwasher-device'));}

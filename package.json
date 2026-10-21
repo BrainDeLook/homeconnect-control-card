@@ -1,6 +1,6 @@
 {
   "name": "homeconnect-control-card",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "type": "module",
   "scripts": {"build": "node build.mjs", "test": "node --test tests/*.test.mjs"}
