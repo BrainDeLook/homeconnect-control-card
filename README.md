@@ -22,8 +22,10 @@ This repository is installed as a HACS custom repository; it is not in the defau
 
 ![Mobile interface with fictional demo appliances](docs/mobile.png)
 
-Manual installation: copy `dist/homeconnect-control-card.js` to `/config/www/homeconnect-control-card.js` and register `/local/homeconnect-control-card.js?v=0.1.0` as a JavaScript module resource.
+Manual installation: copy `dist/homeconnect-control-card.js` to `/config/www/homeconnect-control-card.js` and register `/local/homeconnect-control-card.js?v=0.1.1` as a JavaScript module resource.
 
-Version 0.1.0. Entity/service compatibility was inspected against integration 1.12.5. Tested with unit tests and a browser fixture simulating Home Assistant; real HA and appliance verification is pending. This is a separate frontend card and does not modify the integration.
+Version 0.1.1. Entity/service compatibility was inspected against integration 1.12.5. Tested with unit tests and a browser fixture simulating Home Assistant; real HA and appliance verification is pending. This is a separate frontend card and does not modify the integration.
 
-Build: `node build.mjs`. Tests: `node --test tests/core.test.mjs`. No npm dependencies.
+Build: `node build.mjs`. Tests: `node --test tests/*.test.mjs`. No npm dependencies.
+
+Dishwashers with a separate start entity select a program immediately when clicked; starting uses its own button. Duration comes from HA sensors, when provided before starting. For START_ONLY profiles use `program_selection: confirm`: integration 1.12.5 does not expose per-program execution modes and its select service can start those programs.

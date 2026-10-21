@@ -1,11 +1,11 @@
 export const INTEGRATION = 'homeconnect_ws';
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const ROLES = {
   program:['select_program'], active:['sensor_active_program'], operation:['sensor_operation_state'],
   progress:['sensor_program_progress'], remaining:['sensor_remaining_program_time'], elapsed:['sensor_elapsed_program_time'],
   door:['sensor_door_state','binary_sensor_door_state'], remote:['binary_remote_start_allowed','binary_sensor_remote_start_allowed'],
   start:['button_start_program'], stop:['button_abort_program'], pause:['button_pause_program'], resume:['button_resume_program'],
-  power:['switch_power_state','select_power_state'],
+  power:['switch_power_state','select_power_state'], estimated:['sensor_estimated_remaining_program_time'],
 };
 export const TYPE_NAMES = {Dishwasher:'Посудомоечная машина',Washer:'Стиральная машина',WashingMachine:'Стиральная машина',WasherDryer:'Стирально-сушильная машина',Dryer:'Сушильная машина',Oven:'Духовой шкаф',Hob:'Варочная панель',Hood:'Вытяжка',Fridge:'Холодильник',FridgeFreezer:'Холодильник',Refrigerator:'Холодильник',Freezer:'Морозильник',CoffeeMaker:'Кофемашина',CoffeeMachine:'Кофемашина'};
 export const VALUE_NAMES = {on:'Включено',off:'Выключено',standby:'Ожидание',run:'Выполняется',ready:'Готов к работе',inactive:'Неактивен',pause:'Пауза',finished:'Завершено',delayedstart:'Отложенный запуск',delayed_start:'Отложенный запуск',actionrequired:'Требуется действие',action_required:'Требуется действие',error:'Ошибка',aborting:'Остановка',open:'Открыта',closed:'Закрыта',locked:'Заблокирована',present:'Активно',confirmed:'Подтверждено',unknown:'Нет данных',unavailable:'Нет связи',mains_off:'Выключено'};
@@ -32,6 +32,21 @@ export function shortProgram(raw) {
   if (raw == null || raw === '' || ['unknown','unavailable'].includes(raw)) return 'Не выбрана';
   const tail = String(raw).split(/[._]/).filter(Boolean).pop();
   return PROGRAM_NAMES[tail?.toLowerCase()] || (String(raw).includes('.') || String(raw).startsWith('dishcare_') || String(raw).startsWith('laundrycare_') || String(raw).startsWith('cooking_') ? tail.replace(/([a-z])([A-Z])/g,'$1 $2') : String(raw));
+}
+export function immediateProgramSelection(device,config={}) {
+  if(config.program_selection==='confirm')return false;
+  if(config.program_selection==='immediate')return true;
+  // The legacy select API does not expose per-program Execution metadata.
+  // Enable the requested dishwasher flow only with a separate start entity.
+  return device?.type==='Dishwasher' && !!device.roles.start;
+}
+export function selectedProgramDuration(hass,device,program) {
+  if(program!==hass.states[device.roles.program]?.state)return '—';
+  for(const role of ['remaining','estimated']) {
+    const state=hass.states[device.roles[role]];
+    if(state && Number.isFinite(Number(state.state)) && Number(state.state)>0)return durationText(state);
+  }
+  return '—';
 }
 export function guessType(device, entries) {
   if (TYPE_NAMES[device?.model]) return device.model;
@@ -115,6 +130,7 @@ export function controlGroup(hass, entry, device) {
 }
 export function validateConfig(config) {
   if (!config || typeof config !== 'object') throw Error('Нужна конфигурация карточки');
+  if(config.program_selection && !['immediate','confirm'].includes(config.program_selection))throw Error('program_selection: immediate или confirm');
   if (config.devices && (!Array.isArray(config.devices) || config.devices.some(id=>typeof id!=='string'))) throw Error('devices — список device_id из Home Assistant');
   for (const field of ['entities','device_names','appliance_types']) if (config[field] && (typeof config[field]!=='object'||Array.isArray(config[field]))) throw Error(`${field} — объект`);
   for (const mappings of Object.values(config.entities || {})) {
